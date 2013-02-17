@@ -1,0 +1,50 @@
+#! /usr/bin/env python
+
+import serial
+import sys
+
+def serial_write(data):
+    for char in data:
+        port.write(char)
+        port.flush()
+
+def connection_error():
+    print "Error connecting to device"
+    sys.exit(1)
+
+try:
+  port = serial.Serial('/dev/tty.usbserial', baudrate=9600)
+except serial.SerialException:
+  print "Could not connect to serial port /dev/tty.usbserial"
+  print "Please confirm you device is plugged in and powered on, and the driver is installed"
+  sys.exit(1)
+
+if len(sys.argv) < 2:
+    print "Please specify a file to compile and run"
+    sys.exit(1)
+
+try:
+    program = open(sys.argv[1], 'r').read()
+except:
+    print "Could not open file %s" % sys.argv[1]
+    sys.exit(1)
+program = program.replace('\n', '')
+program = program.replace('\r', '')
+
+serial_write("D")
+
+print "Waiting for MINMON"
+
+try:
+    while True:
+        data = port.read()
+        print data
+        print data
+        if data == ">":
+            break
+except:
+    connection_error()
+
+#serial_write(program)
+
+port.close()
