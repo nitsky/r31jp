@@ -4,6 +4,8 @@ import os
 import sys
 import time
 import serial
+import subprocess
+import progressbar
 
 def serial_write(data):
     for char in data:
@@ -17,6 +19,12 @@ def serial_read():
         print 'Error connecting to device'
         sys.exit(1)
 
+def wait_for_char(char):
+    while True:
+        data = serial_read()
+        if data == char:
+            break
+
 try:
   port = serial.Serial('/dev/tty.usbserial', baudrate=9600)
 except serial.SerialException:
@@ -28,27 +36,38 @@ if len(sys.argv) < 2:
     print 'Please specify a file to compile and run'
     sys.exit(1)
 
-try:
-    program = open(sys.argv[1], 'r').read()
-except:
-    print 'Could not open file %s' % sys.argv[1]
+as31_process = subprocess.Popen(['as31', '-s', sys.argv[1]], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+program, err = as31_process.communicate()
+
+if 'Error' in err:
+    print 'Compilation Error'
+    print '\n'.join(err.splitlines()[3:])
     sys.exit(1)
+
+num_lines = len(program.splitlines())
+
 program = program.replace('\n', '')
 program = program.replace('\r', '')
 
-print 'Waiting for MINMON'
+print 'Hit RESET in MON mode to load code'
 
-while True:
-    time.sleep(0.2)
-    serial_write('D')
-    data = serial_read()
-    if data == '>':
-        break
+wait_for_char('*')
+serial_write('DD')
+wait_for_char('>')
 
 print 'Downloading Code...'
 
-#serial_write(program)
+serial_write(program)
 
-print 'Done!!'
+progress = progressbar.AnimatedProgressBar(end=num_lines, width=50)
+
+while True:
+    data = serial_read()
+    if data != '.':
+        break
+    progress + 1
+    progress.show_progress()
 
 port.close()
+
+os.system('screen /dev/tty.usbserial 9600')
