@@ -70,4 +70,5 @@ while True:
 
 port.close()
 
+os.system('clear')
 os.system('screen /dev/tty.usbserial 9600')
