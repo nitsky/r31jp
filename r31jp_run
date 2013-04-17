@@ -5,61 +5,7 @@ import sys
 import time
 import serial
 import subprocess
-
-class ProgressBar(object):
-    def __init__(self, start=0, end=10, width=12, fill='=', blank='.', format='[%(fill)s>%(blank)s] %(progress)s%%', incremental=True):
-        super(ProgressBar, self).__init__()
-
-        self.start = start
-        self.end = end
-        self.width = width
-        self.fill = fill
-        self.blank = blank
-        self.format = format
-        self.incremental = incremental
-        self.step = 100 / float(width) #fix
-        self.reset()
-
-    def __add__(self, increment):
-        increment = self._get_progress(increment)
-        if 100 > self.progress + increment:
-            self.progress += increment
-        else:
-            self.progress = 100
-        return self
-
-    def __str__(self):
-        progressed = int(self.progress / self.step) #fix
-        fill = progressed * self.fill
-        blank = (self.width - progressed) * self.blank
-        return self.format % {'fill': fill, 'blank': blank, 'progress': int(self.progress)}
-
-    __repr__ = __str__
-
-    def _get_progress(self, increment):
-        return float(increment * 100) / self.end
-
-    def reset(self):
-        self.progress = self._get_progress(self.start)
-        return self
-
-class AnimatedProgressBar(ProgressBar):
-    """Extends ProgressBar to allow you to use it straighforward on a script.
-    Accepts an extra keyword argument named `stdout` (by default use sys.stdout)
-    and may be any file-object to which send the progress status.
-    """
-    def __init__(self, *args, **kwargs):
-        super(AnimatedProgressBar, self).__init__(*args, **kwargs)
-        self.stdout = kwargs.get('stdout', sys.stdout)
-
-    def show_progress(self):
-        if hasattr(self.stdout, 'isatty') and self.stdout.isatty():
-            self.stdout.write('\r')
-        else:
-            self.stdout.write('\n')
-        self.stdout.write(str(self))
-        self.stdout.flush()
-
+from optparse import OptionParser
 
 def serial_write(data):
     for char in data:
@@ -79,50 +25,68 @@ def wait_for_char(char):
         if data == char:
             break
 
-try:
-  port = serial.Serial('/dev/tty.usbserial', baudrate=9600)
-except serial.SerialException:
-  print 'Could not connect to serial port /dev/tty.usbserial'
-  print 'Please confirm you device is plugged in and powered on, and the driver is installed'
-  sys.exit(1)
+def main():
 
-if len(sys.argv) < 2:
-    print 'Please specify a file to compile and run'
-    sys.exit(1)
+    parser = OptionParser()
+    parser.add_option("-s", "--serial-port",
+                      dest="serialport",
+                      default='/dev/tty.usbserial',
+                      help="choose serial port")
+    parser.add_option("-b", "--baud-rate",
+                      dest="baudrate",
+                      default=9600,
+                      help="specify baud rate")
+    (options, args) = parser.parse_args()
+    
+    if len(args) < 1:
+        print 'Please specify a file to compile and run'
+        sys.exit(1)
+    
+    file = args[0]
+    
+    if not os.path.exists(file):
+        print 'File ' + file + ' not found'
+        sys.exit(1)
 
-as31_process = subprocess.Popen(['as31', '-s', sys.argv[1]], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-program, err = as31_process.communicate()
+    try:
+        port = serial.Serial(options.serialport, baudrate=options.baudrate)
+    except serial.SerialException:
+        print 'Could not connect to serial port %s' % options.serialport
+        print 'Please confirm you device is plugged in and powered on, and the driver is installed'
+        sys.exit(1)
 
-if 'Error' in err:
-    print 'Compilation Error'
-    print '\n'.join(err.splitlines()[3:])
-    sys.exit(1)
+    as31_process = subprocess.Popen(['as31', '-s', file], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    program, err = as31_process.communicate()
 
-num_lines = len(program.splitlines())
+    if 'Error' in err:
+        print 'Compilation Error'
+        print '\n'.join(err.splitlines()[3:])
+        sys.exit(1)
 
-program = program.replace('\n', '')
-program = program.replace('\r', '')
+    num_lines = len(program.splitlines())
 
-print 'Hit RESET in MON mode to load code'
+    program = program.replace('\n', '')
+    program = program.replace('\r', '')
 
-wait_for_char('*')
-serial_write('DD')
-wait_for_char('>')
+    print 'Hit RESET in MON mode to load code'
 
-print 'Downloading Code...'
+    wait_for_char('*')
+    serial_write('DD')
+    wait_for_char('>')
 
-serial_write(program)
+    print 'Downloading Code...'
 
-progress = AnimatedProgressBar(end=num_lines, width=50)
+    serial_write(program)
 
-while True:
-    data = serial_read()
-    if data != '.':
-        break
-    progress + 1
-    progress.show_progress()
+    while True:
+        data = serial_read()
+        if data != '.':
+            break
 
-port.close()
+    port.close()
 
-os.system('clear')
-os.system('screen /dev/tty.usbserial 9600')
+    os.system('clear')
+    os.system('screen %s %s' % (options.serialport, options.baudrate))
+
+if __name__ == "__main__":
+    main()
