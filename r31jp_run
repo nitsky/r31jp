@@ -7,21 +7,21 @@ import serial
 import subprocess
 from optparse import OptionParser
 
-def serial_write(data):
+def serial_write(port, data):
     for char in data:
         port.write(char)
         port.flush()
 
-def serial_read():
+def serial_read(port):
     try:
         return port.read()
     except:
         print 'Error connecting to device'
         sys.exit(1)
 
-def wait_for_char(char):
+def wait_for_char(port, char):
     while True:
-        data = serial_read()
+        data = serial_read(port)
         if data == char:
             break
 
@@ -36,6 +36,8 @@ def main():
                       dest="baudrate",
                       default=9600,
                       help="specify baud rate")
+    parser.add_option("-n", "--no-tty", action="store_true", dest="no_tty")
+
     (options, args) = parser.parse_args()
     
     if len(args) < 1:
@@ -70,23 +72,24 @@ def main():
 
     print 'Hit RESET in MON mode to load code'
 
-    wait_for_char('*')
-    serial_write('DD')
-    wait_for_char('>')
+    wait_for_char(port, '*')
+    serial_write(port, 'DD')
+    wait_for_char(port, '>')
 
     print 'Downloading Code...'
 
-    serial_write(program)
+    serial_write(port, program)
 
     while True:
-        data = serial_read()
+        data = serial_read(port)
         if data != '.':
             break
 
     port.close()
 
-    os.system('clear')
-    os.system('screen %s %s' % (options.serialport, options.baudrate))
+    if not options.no_tty:
+        os.system('clear')
+        os.system('screen %s %s' % (options.serialport, options.baudrate))
 
 if __name__ == "__main__":
     main()
