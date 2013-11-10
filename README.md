@@ -1,4 +1,4 @@
-r31jp_run
+r31jp
 ============
 
 1. Buy a USB-Serial adapter, here's one I recommend:
@@ -10,10 +10,9 @@ r31jp_run
     http://prolificusa.com/files/md_PL2303_MacOSX10.6_dmg_v1.4.0.zip
 
 ```
-git clone git@github.com:nitsky/r31jp_run.git
-cd r31jp_run
-make
-./r31jp_run -s path/to/serial/port path/to/code.asm
+brew tap nitsky/r31jp
+brew install r31jp
+r31jp -s path/to/serial/port path/to/code.asm
 ```
 
 This project is released under the MIT License.
