@@ -39,13 +39,13 @@ def main():
     parser.add_option("-n", "--no-tty", action="store_true", dest="no_tty")
 
     (options, args) = parser.parse_args()
-    
+
     if len(args) < 1:
         print 'Please specify a file to compile and run'
         sys.exit(1)
-    
+
     file = args[0]
-    
+
     if not os.path.exists(file):
         print 'File ' + file + ' not found'
         sys.exit(1)
@@ -60,7 +60,7 @@ def main():
     as31_process = subprocess.Popen(['as31', '-s', file], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     program, err = as31_process.communicate()
 
-    if 'Error' in err:
+    if 'error' in err.lower():
         print 'Compilation Error'
         print '\n'.join(err.splitlines()[3:])
         sys.exit(1)
