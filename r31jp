@@ -37,6 +37,7 @@ def main():
                       default=9600,
                       help="specify baud rate")
     parser.add_option("-n", "--no-tty", action="store_true", dest="no_tty")
+    parser.add_option("-t", "--assemble-only", action="store_true", dest="no_run", help="test assemble only")
 
     (options, args) = parser.parse_args()
 
@@ -50,19 +51,23 @@ def main():
         print 'File ' + file + ' not found'
         sys.exit(1)
 
-    try:
-        port = serial.Serial(options.serialport, baudrate=options.baudrate)
-    except serial.SerialException:
-        print 'Could not connect to serial port %s' % options.serialport
-        print 'Please confirm you device is plugged in and powered on, and the driver is installed'
-        sys.exit(1)
-
     as31_process = subprocess.Popen(['as31', '-s', file], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     program, err = as31_process.communicate()
 
     if 'error' in err.lower():
         print 'Compilation Error'
         print '\n'.join(err.splitlines()[3:])
+        sys.exit(1)
+
+    if options.no_run:
+        print 'Assembly Succeded'
+        sys.exit(1)
+
+    try:
+        port = serial.Serial(options.serialport, baudrate=options.baudrate)
+    except serial.SerialException:
+        print 'Could not connect to serial port %s' % options.serialport
+        print 'Please confirm you device is plugged in and powered on, and the driver is installed'
         sys.exit(1)
 
     num_lines = len(program.splitlines())
